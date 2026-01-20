@@ -1,4 +1,4 @@
-name: macOS SimBA install test
+name: macOS (Intel) SimBA install test
 
 on:
   push:
@@ -6,46 +6,53 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-macos:
-    runs-on: macos-latest
+  test-macos-intel:
+    runs-on: macos-13
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Homebrew is already available on GitHub macOS runners,
-      # but we update + install ffmpeg to match what users do.
       - name: Install FFmpeg (Homebrew)
         run: |
           brew update
           brew install ffmpeg
           ffmpeg -version
 
-      # Install Miniconda + create a Python 3.6 environment
-      - name: Set up Miniconda (Python 3.6 env)
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniconda-version: "latest"
-          auto-update-conda: true
-          activate-environment: simba
-          python-version: "3.6"
-
-      - name: Show Python + Conda info
-        shell: bash -l {0}
+      - name: Install Anaconda (x86_64)
+        shell: bash
         run: |
-          which python
+          set -euo pipefail
+          # Pick a current Anaconda installer for Intel macOS.
+          # If this exact version ever 404s, swap it for a newer one from repo.anaconda.com/archive/.
+          curl -L -o Anaconda3.sh https://repo.anaconda.com/archive/Anaconda3-2024.10-1-MacOSX-x86_64.sh
+          bash Anaconda3.sh -b -p "$HOME/anaconda3"
+          echo "$HOME/anaconda3/bin" >> $GITHUB_PATH
+
+      - name: Create Python 3.6 env (conda-forge)
+        shell: bash
+        run: |
+          set -euo pipefail
+          conda --version
+          conda config --set always_yes yes
+          conda config --add channels conda-forge
+          conda config --set channel_priority strict
+
+          conda create -n simba python=3.6
+          source "$HOME/anaconda3/bin/activate" simba
           python --version
-          conda info
 
-      # Install SimBA in that environment
       - name: Install SimBA
-        shell: bash -l {0}
+        shell: bash
         run: |
+          set -euo pipefail
+          source "$HOME/anaconda3/bin/activate" simba
           python -m pip install --upgrade pip
           pip install simba-uw-tf-dev
 
-      # Minimal verification test
       - name: Import test
-        shell: bash -l {0}
+        shell: bash
         run: |
+          set -euo pipefail
+          source "$HOME/anaconda3/bin/activate" simba
           python -c "import simba; print('SimBA import OK')"
