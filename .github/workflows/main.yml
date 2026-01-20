@@ -52,3 +52,77 @@ jobs:
           set -euo pipefail
           source "$HOME/anaconda3/bin/activate" simba
           python -c "import simba; print('SimBA import OK')"
+
+      # ✅ NEW: confirms entrypoint is registered (common “opens” proxy)
+      - name: CLI smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HOME/anaconda3/bin/activate" simba
+          simba --help
+
+      # ✅ NEW: confirms GUI modules can be imported (no missing GUI deps)
+      - name: GUI import smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HOME/anaconda3/bin/activate" simba
+          python - <<'PY'
+import importlib
+
+# Try a few likely GUI modules; pass if at least one is present.
+candidates = [
+    "simba.ui",
+    "simba.ui.simba_main",
+    "simba.SimBA",   # some builds expose a launcher module with this name
+]
+
+ok = []
+fail = []
+
+for m in candidates:
+    try:
+        importlib.import_module(m)
+        ok.append(m)
+    except Exception as e:
+        fail.append((m, repr(e)))
+
+print("GUI-related modules imported:", ok)
+
+if not ok:
+    print("No GUI modules could be imported. Failures:")
+    for m, e in fail:
+        print(f" - {m}: {e}")
+    raise SystemExit(1)
+PY
+
+      # ✅ NEW (optional but strong): try to locate a callable "main" launcher
+      - name: GUI launcher callable check
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HOME/anaconda3/bin/activate" simba
+          python - <<'PY'
+# We don't actually run the GUI (no display in CI),
+# but we verify a launch entrypoint exists and is callable.
+import importlib
+
+possible = [
+    ("simba.ui.simba_main", "main"),
+    ("simba.ui.simba_ui", "main"),
+    ("simba.SimBA", "main"),
+]
+
+found = []
+for mod, fn in possible:
+    try:
+        m = importlib.import_module(mod)
+        if hasattr(m, fn) and callable(getattr(m, fn)):
+            found.append(f"{mod}.{fn}")
+    except Exception:
+        pass
+
+print("Found possible GUI launcher(s):", found)
+if not found:
+    raise SystemExit("No callable GUI launcher found (imports may still be OK).")
+PY
