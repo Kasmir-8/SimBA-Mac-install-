@@ -1,4 +1,4 @@
-name: macOS (Intel) SimBA install test
+name: macOS Intel SimBA install test
 
 on:
   push:
@@ -7,11 +7,10 @@ on:
 
 jobs:
   test-macos-intel:
-    runs-on: macos-13
+    runs-on: macos-15-intel
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install FFmpeg (Homebrew)
         run: |
@@ -23,17 +22,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Pick a current Anaconda installer for Intel macOS.
-          # If this exact version ever 404s, swap it for a newer one from repo.anaconda.com/archive/.
           curl -L -o Anaconda3.sh https://repo.anaconda.com/archive/Anaconda3-2024.10-1-MacOSX-x86_64.sh
           bash Anaconda3.sh -b -p "$HOME/anaconda3"
           echo "$HOME/anaconda3/bin" >> $GITHUB_PATH
 
-      - name: Create Python 3.6 env (conda-forge)
+      - name: Create SimBA env (Python 3.6)
         shell: bash
         run: |
           set -euo pipefail
-          conda --version
           conda config --set always_yes yes
           conda config --add channels conda-forge
           conda config --set channel_priority strict
